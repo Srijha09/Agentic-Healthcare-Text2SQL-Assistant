@@ -1,0 +1,57 @@
+# Environment variables
+.env
+
+# Project zip file
+labs-assessment.zip
+
+# DuckDB database and artifacts
+healthcare.duckdb
+extracted_archives/
+*.csv
+
+# Session audit exports (keep directory via .gitkeep)
+outputs/reports/session_*.md
+outputs/visualization/*.png
+
+# Project archives
+asdf-project.zip
+*-project.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
