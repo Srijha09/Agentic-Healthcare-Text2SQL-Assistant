@@ -1,4 +1,4 @@
-# Labs@ Assessment — Healthcare Analytics Agent
+# Healthcare Analytics Agent
 
 ## What I Built
 
