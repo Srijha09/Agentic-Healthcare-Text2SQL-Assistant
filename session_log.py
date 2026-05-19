@@ -19,6 +19,29 @@ def _truncate(s: str, max_len: int = 4000) -> str:
 # Long numeric tokens in exported SQL (patient-like IDs, NPIs) — redact in markdown only.
 _SQL_DIGIT_TOKEN = re.compile(r"\b\d{8,}\b")
 
+# Best-effort table names after FROM / JOIN (DuckDB-style identifiers).
+_TABLE_FROM_JOIN = re.compile(
+    r'\b(?:FROM|JOIN)\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))',
+    re.IGNORECASE,
+)
+
+
+def tables_referenced_in_sql(sql: str | None) -> list[str]:
+    """Distinct table-like identifiers from FROM/JOIN clauses (for session digest)."""
+    if not sql or not str(sql).strip():
+        return []
+    seen: list[str] = []
+    for m in _TABLE_FROM_JOIN.finditer(str(sql)):
+        name = (m.group(1) or m.group(2) or "").strip()
+        if not name:
+            continue
+        up = name.upper()
+        if up in ("SELECT", "LATERAL", "UNNEST"):
+            continue
+        if name not in seen:
+            seen.append(name)
+    return seen
+
 
 def _redact_sql_for_export(sql: str) -> str:
     return _SQL_DIGIT_TOKEN.sub("[id]", sql)
@@ -75,7 +98,9 @@ def _tool_result_one_line(result_json: str) -> str:
             if d.get("retry_limit_reached"):
                 return "blocked (SQL retry limit)"
             if "error" in d:
-                return f"error: {_truncate(str(d['error']), 200)}"
+                kind = d.get("error_kind", "")
+                suf = f" [{kind}]" if kind else ""
+                return f"error{suf}: {_truncate(str(d['error']), 180)}"
             if "total_rows" in d:
                 return f"ok, rows={d.get('total_rows')}"
             if "chart_path" in d:
@@ -86,6 +111,9 @@ def _tool_result_one_line(result_json: str) -> str:
                 return f"ok, describe {d.get('table')}"
             if "row_count" in d:
                 return f"ok, row_count={d.get('row_count')}"
+            if "stats" in d and isinstance(d.get("stats"), dict):
+                col = d["stats"].get("column", "?")
+                return f"ok, summarize_sql_stats column={col}"
         return "ok"
     except json.JSONDecodeError:
         return _truncate(result_json, 120)
@@ -98,6 +126,7 @@ class TurnLog:
     tool_rounds: list[dict] = field(default_factory=list)
     sql_audit_rows: list[dict] = field(default_factory=list)
     assistant: str | None = None
+    peer_review: str | None = None
 
 
 @dataclass
@@ -159,6 +188,15 @@ class SessionLog:
                         "chart_type": args.get("chart_type"),
                     }
                 )
+            elif name == "summarize_sql_stats" and isinstance(args, dict) and args.get("sql"):
+                turn.sql_audit_rows.append(
+                    {
+                        "step": len(turn.sql_audit_rows) + 1,
+                        "tool": name,
+                        "sql": str(args["sql"]).strip(),
+                        "round": round_num,
+                    }
+                )
 
         tr = {
             "round": round_num,
@@ -172,6 +210,85 @@ class SessionLog:
         if not self.turns:
             return
         self.turns[-1].assistant = text
+
+    def set_peer_review(self, text: str | None) -> None:
+        """Second-pass reviewer output (markdown); optional per turn."""
+        if not self.turns:
+            return
+        self.turns[-1].peer_review = (text or "").strip() or None
+
+    def compute_session_stats(self) -> dict:
+        """Aggregate counts from logged turns (no LLM). Used for executive summary + digest."""
+        distinct_tables: set[str] = set()
+        sql_executions = 0
+        charts = 0
+        tool_calls = 0
+        tool_errors = 0
+        for turn in self.turns:
+            for tr in turn.tool_rounds:
+                for call in tr.get("calls", []):
+                    tool_calls += 1
+                    fn = call.get("function")
+                    res = call.get("result", "")
+                    try:
+                        d = json.loads(res)
+                        if isinstance(d, dict) and "error" in d:
+                            tool_errors += 1
+                    except json.JSONDecodeError:
+                        pass
+                    args = call.get("arguments") or {}
+                    sql_arg = args.get("sql") if isinstance(args, dict) else None
+                    if fn == "create_chart":
+                        charts += 1
+                    if sql_arg and fn in ("query_database", "create_chart", "summarize_sql_stats"):
+                        sql_executions += 1
+                        for t in tables_referenced_in_sql(str(sql_arg)):
+                            distinct_tables.add(t)
+        return {
+            "turns": len(self.turns),
+            "distinct_tables": sorted(distinct_tables),
+            "sql_executions": sql_executions,
+            "charts": charts,
+            "tool_calls": tool_calls,
+            "tool_errors": tool_errors,
+        }
+
+    def _executive_summary_lines(self) -> list[str]:
+        st = self.compute_session_stats()
+        tbl = st["distinct_tables"]
+        tbl_note = ", ".join(f"`{x}`" for x in tbl[:25])
+        if len(tbl) > 25:
+            tbl_note += f", … (+{len(tbl) - 25} more)"
+        if not tbl:
+            tbl_note = "_(none parsed from SQL)_"
+        lines = [
+            "## Executive summary",
+            "",
+            f"- **Conversation turns:** {st['turns']}",
+            f"- **SQL executions** (query / chart / summarize): {st['sql_executions']}",
+            f"- **Charts generated:** {st['charts']}",
+            f"- **Tool invocations (total):** {st['tool_calls']} ({st['tool_errors']} with error in JSON result)",
+            f"- **Distinct tables referenced** (FROM/JOIN, best-effort): {tbl_note}",
+            "",
+        ]
+        return lines
+
+    def _session_digest_footer_lines(self) -> list[str]:
+        if not self.turns:
+            return []
+        st = self.compute_session_stats()
+        tcount = len(st["distinct_tables"])
+        lines = [
+            "---",
+            "",
+            "## Session digest",
+            "",
+            f"_This session: **{st['turns']}** turn(s); **{st['sql_executions']}** guarded SQL execution(s); "
+            f"**{tcount}** distinct table name(s) seen in SQL; **{st['charts']}** chart(s); "
+            f"**{st['tool_calls']}** tool call(s) with **{st['tool_errors']}** error result(s)._",
+            "",
+        ]
+        return lines
 
     def _repro_markdown(self) -> list[str]:
         if not self.repro:
@@ -195,6 +312,8 @@ class SessionLog:
             f"_Generated {datetime.now().isoformat(timespec='seconds')}. Synthetic data._",
             "",
         ]
+        if self.turns:
+            lines.extend(self._executive_summary_lines())
         lines.extend(self._repro_markdown())
         for i, turn in enumerate(self.turns, start=1):
             lines.append(f"## Turn {i}")
@@ -260,6 +379,13 @@ class SessionLog:
             else:
                 lines.append("_(none)_")
             lines.append("")
+
+            if turn.peer_review:
+                lines.append("### Peer review")
+                lines.append("")
+                lines.append(turn.peer_review)
+                lines.append("")
+        lines.extend(self._session_digest_footer_lines())
         return "\n".join(lines)
 
     def save(self, directory: Path) -> Path:

@@ -1,0 +1,29 @@
+Diabetes / cohort (core narrative)
+“How many patients have at least one E11% admit diagnosis on medical claims and at least one metformin fill?”
+“List monthly metformin fill counts for patients with an E11 admit code—then chart fills by month for that cohort.”
+“Among patients with an E11 admit diagnosis, what share never have a medical claim with VISIT_TYPE = 'LAB'?” (care-gap proxy)
+“For patients with both E11 signal and metformin, who are the top 15 rendering NPIs by sum of PROVIDER_BILLED?”
+
+Time-to-event / therapy timing
+“Among patients with an E11 admit code and a metformin fill after their first qualifying medical service date, what is the median days from first E11 service date to first metformin fill?”
+“Chart average days from first E11 service to first metformin fill by patient state (top 10 states by cohort size).”
+Cost & utilization (medical + Rx)
+“What are total PROVIDER_BILLED, PLAN_ALLOWED, and PLAN_PAID across all mx_events?”
+“Rank states by total PROVIDER_BILLED (top 15) and bar chart billed amount by state.”
+“What are total pharmacy submitted amount and plan paid on rx_events?”
+
+Charts (exercise create_chart)
+“Line chart: monthly medical event volume (mx_events) by calendar month for the last 24 months.”
+“Bar chart: top 15 states by total PROVIDER_BILLED (two columns: state label, amount).”
+
+Schema exploration (shows planner + safe discovery)
+“What tables exist, and what are the columns in mx_events and rx_events?”
+“Profile demographics—what do the key fields look like before I write cohort SQL?”
+
+Follow-up / session continuity (good for a second screenshot)
+“Same cohort as before—now break metformin fills down by patient sex using demographics.”
+“For that diabetes+metformin cohort, compare PROVIDER_BILLED in 2019 vs 2020 (or two calendar windows you can name from the data).”
+
+Edge / guardrail demos (optional, for “product thinking”)
+Ask for something that will force LIMIT/timeout behavior or a retry (e.g. overly wide SELECT)—useful to show SQL guard + error hints in the export.
+Run two identical questions back-to-back to show query cache (subtle; mainly visible in speed/logs).

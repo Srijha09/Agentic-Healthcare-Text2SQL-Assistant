@@ -12,6 +12,7 @@ extracted_archives/
 # Session audit exports (keep directory via .gitkeep)
 outputs/reports/session_*.md
 outputs/visualization/*.png
+outputs/logs/*.log
 
 # Project archives
 asdf-project.zip

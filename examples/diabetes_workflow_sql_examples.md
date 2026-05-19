@@ -1,4 +1,4 @@
-# Flagship workflow — diabetes cohort, therapy, gaps, and provider cost
+# Diabetes cohort workflow — SQL examples (cohort, therapy, gaps, provider cost)
 
 This is the **primary healthcare narrative** for demos: concrete use cases aligned with analytics on claims-like data (synthetic only — not for clinical or payment decisions).
 
@@ -114,4 +114,4 @@ LIMIT 25;
 - “What share of E11 patients never have a LAB visit type on MX?”
 - “Top 10 rendering NPIs by total PROVIDER_BILLED for patients on metformin with a diabetes admit code.”
 
-See also [`bundle_c_cost_and_chart.md`](bundle_c_cost_and_chart.md) for cost fields and chart usage. **Time from diagnosis signal to first metformin:** [`time_to_event_sql.md`](time_to_event_sql.md).
+See also [`cost_and_chart_sql_examples.md`](cost_and_chart_sql_examples.md) for cost fields and chart usage. **Time from diagnosis signal to first metformin:** [`time_to_metformin_sql_examples.md`](time_to_metformin_sql_examples.md).

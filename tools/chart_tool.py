@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from tools.db_query import DuckDBQuery
+from tools.sql_error_hints import structured_tool_error
 from tools.sql_guard import query_with_columns_timed
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -45,7 +46,11 @@ def create_chart_from_sql(
     """
     chart_type = (chart_type or "bar").lower().strip()
     if chart_type not in ("bar", "line"):
-        return {"error": f"chart_type must be 'bar' or 'line', got {chart_type!r}"}
+        return structured_tool_error(
+            f"chart_type must be 'bar' or 'line', got {chart_type!r}",
+            error_kind="chart_bad_type",
+            next_step="Set chart_type to 'bar' or 'line'.",
+        )
 
     out_dir = output_dir or DEFAULT_OUTPUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -54,11 +59,17 @@ def create_chart_from_sql(
     if err_json:
         return json.loads(err_json)
     if not rows:
-        return {"error": "Query returned no rows — nothing to chart."}
+        return structured_tool_error(
+            "Query returned no rows — nothing to chart.",
+            error_kind="chart_empty_rows",
+            next_step="Loosen filters or widen the cohort so the SQL returns rows, then retry create_chart.",
+        )
     if len(columns) < 2:
-        return {
-            "error": "Need at least two columns: first = labels (category or date), second = numeric values.",
-        }
+        return structured_tool_error(
+            "Need at least two columns: first = labels (category or date), second = numeric values.",
+            error_kind="chart_bad_columns",
+            next_step="SELECT at least two columns (label, numeric measure) with LIMIT on SELECT...FROM.",
+        )
 
     max_points = 40
     rows = rows[:max_points]
@@ -102,12 +113,18 @@ def create_chart_from_sql(
     rel_str = rel.as_posix()
     ttl = heading
 
+    sample_rows = [
+        {"label": labels[i], "value": values[i]}
+        for i in range(min(12, len(labels)))
+    ]
+
     return {
         "chart_path": rel_str,
         "title": ttl,
         "chart_type": chart_type,
         "rows_plotted": len(rows),
         "columns": list(columns[:2]),
+        "sample_rows": sample_rows,
         "markdown_embed": f"![{ttl}]({rel_str})",
         "note": "Include markdown_embed in the final answer so the user can see where the PNG lives; session export will contain this JSON.",
     }

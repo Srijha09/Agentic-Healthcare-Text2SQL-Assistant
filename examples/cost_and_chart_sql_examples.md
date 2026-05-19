@@ -1,4 +1,4 @@
-# Bundle C — cost aggregates + chart tool
+# Cost aggregates and charts (`create_chart`)
 
 Synthetic data only — not for clinical or payment operations.
 
@@ -55,7 +55,7 @@ The agent calls **`create_chart`** with:
 - **`chart_type`**: `bar` or `line`.
 - **`title`**: Short figure title that states **what** is plotted: population or cohort (when relevant), **metric**, and **time span or breakdown** (e.g. `Metformin fills by month, E11 cohort, study window`).
 
-The tool writes `outputs/visualization/chart_<timestamp>.png` and returns **`markdown_embed`**. The assistant should repeat that line in the chat answer; session export (Bundle A) will include the tool JSON for audit.
+The tool writes `outputs/visualization/chart_<timestamp>.png` and returns **`markdown_embed`**. The assistant should repeat that line in the chat answer; session markdown export includes the tool JSON for audit.
 
 **Example chart query (monthly volume — adjust date function if needed):**
 

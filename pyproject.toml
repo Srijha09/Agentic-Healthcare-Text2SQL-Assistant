@@ -14,3 +14,13 @@ dependencies = [
     "tqdm>=4.66.0",
     "streamlit>=1.40.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "iniconfig>=2.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

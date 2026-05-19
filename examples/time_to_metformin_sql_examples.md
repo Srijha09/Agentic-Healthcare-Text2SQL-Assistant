@@ -1,8 +1,8 @@
-# Time-to-event patterns (diagnosis signal to first metformin)
+# Time-to-event: diagnosis signal to first metformin fill
 
 Synthetic claims data only — not for clinical or payment decisions.
 
-These queries use the same **E11 admit proxy** and **metformin** match as [`workflow_flagship_diabetes_analytics.md`](workflow_flagship_diabetes_analytics.md). Confirm column names with `DESCRIBE mx_events` / `DESCRIBE rx_events`.
+These queries use the same **E11 admit proxy** and **metformin** match as [`diabetes_workflow_sql_examples.md`](diabetes_workflow_sql_examples.md). Confirm column names with `DESCRIBE mx_events` / `DESCRIBE rx_events`.
 
 ## Days from first E11 admit-line signal to first metformin fill (cohort-level)
 
