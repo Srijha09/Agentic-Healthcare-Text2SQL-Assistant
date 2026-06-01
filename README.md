@@ -1,4 +1,4 @@
-# Healthcare Analytics Agent
+# Healthcare Analytics Text-to-SQL Agent
 
 Structured analyst assistant over synthetic healthcare claims in DuckDB: plans before querying, guarded SQL, audit exports, and optional trust layers (peer review, HITL approval, RBAC).
 
